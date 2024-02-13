@@ -20,9 +20,10 @@ describe("DeFi Staking", function () {
 
   let staker: any, owner: any, addr1: any, addr2: any, addr3: any;
   let stakerA: any, stakerB: any, stakerC: any;
+  let external: any;
 
   before(async function () {
-    const external = await ethers.deployContract("External");
+    external = await ethers.deployContract("External");
     const externalAddress = await external.getAddress();
 
     staker = await ethers.deployContract("Staker", [externalAddress]);
@@ -30,7 +31,7 @@ describe("DeFi Staking", function () {
     addr1 = await ethers.provider.getSigner(1);
     addr2 = await ethers.provider.getSigner(2);
     addr3 = await ethers.provider.getSigner(3);
-
+    console.log(staker, owner, addr1, addr2)
     stakerA = staker.connect(addr1);
     stakerB = staker.connect(addr2);
     stakerC = staker.connect(addr3);

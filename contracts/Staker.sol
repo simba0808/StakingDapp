@@ -9,12 +9,18 @@ import "./External.sol";
 contract Staker {
     External public externalContract;
 
+    //contract create time
+    uint public deployedTime;
+
+    //total supply
+    uint256 public totalSupply;
+
     //staking reward per second
-    uint256 public constant rewardRate = 0.1 ether;
+    uint256 public constant rewardRate = 0.0001 ether;
 
     //deadline for staking to begin/end
-    uint256 public withdrawalDeadline = block.timestamp + 10 seconds;
-    uint256 public claimDeadline = block.timestamp + 20 seconds;
+    uint256 public withdrawalDeadline = block.timestamp + 120 seconds;
+    uint256 public claimDeadline = block.timestamp + 240 seconds;
 
     //current block
     uint256 public currentBlock = 0;
@@ -26,11 +32,13 @@ contract Staker {
     mapping(address => uint256) public depositTimestamps;
 
     event Stake(address indexed sender, uint256 amount);
+    event Withdraw(uint256 amount);
     event Received(address indexed receiver, uint256 amount);
     event Execute(address indexed sender, uint256 amount);
 
-    constructor(address externalContractAddress) {
-        externalContract = External(externalContractAddress);
+    constructor(External _external) {
+        deployedTime = block.timestamp;
+        externalContract = _external;
     }
 
     function withdrawalTimeLeft() public view returns (uint256 withdrawalTimeLeft) {
@@ -77,6 +85,7 @@ contract Staker {
 
     function stake() public payable withdrawalDeadlineReached(false) claimDeadlineReached(false) {
         balances[msg.sender] = balances[msg.sender] + msg.value;
+        totalSupply += msg.value;
         depositTimestamps[msg.sender] = block.timestamp;
 
         emit Stake(msg.sender, msg.value);
@@ -87,15 +96,18 @@ contract Staker {
         
         uint256 currentBalance = balances[msg.sender];
         uint256 amountToWithdraw = currentBalance + ((block.timestamp - depositTimestamps[msg.sender]) * rewardRate);
+        totalSupply -= amountToWithdraw;
         balances[msg.sender] = 0;
 
         (bool sent, bytes memory data) = msg.sender.call{value: amountToWithdraw}("");
     
         require(sent, "Failed to send Ether");
+        emit Withdraw(amountToWithdraw);
     }
 
     function execute() public claimDeadlineReached(true) notCompleted {
-        externalContract.complete{value: address(this).balance}();
+        (bool success, ) = address(externalContract).call{value: address(this).balance}("");
+        require(success, "Transfer failed");
     }
 
     function killTime() public {
